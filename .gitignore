@@ -1,0 +1,6 @@
+.terraform*
+.tofu*
+*.auto.tfvars*
+*.log*
+*.tfplan*
+*.tfstate*
