@@ -35,11 +35,12 @@ variable "templates"{
       iothread = optional(bool, false)
     })), {})
     nics = map(object({
+      default = optional(bool, false)
       bridge = string
       vlan_tag = optional(number)
       cidr = string
       ip_offset = number
-      gateway = optional(string)
+      gateway = string
       dns_servers = optional(list(string), [])
     }))
     pci_devices = optional(map(object({

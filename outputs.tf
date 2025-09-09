@@ -1,4 +1,4 @@
-output"ansible_inventory" {
+output "ansible_inventory" {
   value = {
     "all" = {
       "children" = {for template_name, template in var.templates: template_name => {

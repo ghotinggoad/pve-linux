@@ -14,12 +14,14 @@ locals{
       iothread = vdisk.iothread
     }}
     nics = {for nic_name, nic in template.nics: nic_name => {
+      default = nic.default
       bridge = nic.bridge
       vlan_tag = nic.vlan_tag
       mac_address = format("52:54:00:%02d:%02d:%02d", split(".", nic.cidr)[2], nic.ip_offset+i, index(keys(template.nics), nic_name))
       ip_address = cidrhost(nic.cidr, nic.ip_offset+i)
       prefix_length = split("/", nic.cidr)[1]
       gateway = nic.gateway
+      routing_table = 100 + index(keys(template.nics), nic_name)
       dns_servers = nic.dns_servers
     }}
     pci_devices = {for pci_device_name, pci_device in template.pci_devices: pci_device_name => {
@@ -55,6 +57,7 @@ resource "proxmox_virtual_environment_file" "user_data_cidata" {
       hostname = each.value.hostname
       ssh_username = each.value.ssh.username
       ssh_public_key = each.value.ssh.public_key
+      nics = each.value.nics
     })
     file_name = "${each.key}-user-data.yml"
   }
@@ -99,6 +102,7 @@ resource "proxmox_virtual_environment_vm" "vms" {
     content {
       datastore_id = var.proxmox.datastores.domains
       interface = disk.value.interface
+      serial = disk.key
       size = disk.value.size
       file_format = "raw"
       import_from = disk.value.cloud_image_id

@@ -9,11 +9,6 @@ network:
       dhcp4: no
       addresses:
         - ${nic.ip_address}/${nic.prefix_length}
-      %{~ if length(nic.gateway) > 0 ~}
-      routes:
-        - to: 0.0.0.0/0
-          via: ${nic.gateway}
-      %{~ endif ~}
       nameservers:
         addresses:
           %{~ for dns_server in nic.dns_servers ~}
