@@ -5,8 +5,7 @@ ssh_pwauth: false
 users:
   - name: ${ssh_username}
     sudo: ALL=(ALL) NOPASSWD:ALL
-    lock_passwd: false
-    passwd: $6$B.ZaECEguANjLqi5$tUnZQj0vquaEwLKQfH0pi6X/QfK6vEhy9FIUGv2RvqsNpXGulp6OwH9FiJS.H0xqAsHD.eQ2JlAReOK8UJWev1
+    lock_passwd: true
     ssh_authorized_keys:
     - "${ssh_public_key}"
 growpart:
