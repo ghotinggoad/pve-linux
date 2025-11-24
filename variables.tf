@@ -29,11 +29,30 @@ variable "templates"{
     affinity = optional(string)
     memory_size_min = number
     memory_size_max = optional(number)
-    vdisks = optional(map(object({
+    root_vdisk = object({
+      interface = optional(string, "scsi0")
+      path = optional(string, "/dev/sda")
       size = number
-      cloud_image_filename = optional(string)
+      cloud_image_filename = string
       iothread = optional(bool, false)
+    })
+    additional_vdisks = optional(map(object({
+      interface = string
+      path = string
+      size = number
+      iothread = optional(bool, false)
+      partitions = optional(map(object({
+        size = string
+        fstype = string
+        mount_target = string
+        mount_options = optional(string, "defaults")
+      })))
     })), {})
+    tmpfs = optional(map(object({
+      size = string
+      mount_target = string
+      mount_options = optional(string, "defaults")
+    })))
     nics = map(object({
       default = optional(bool, false)
       bridge = string

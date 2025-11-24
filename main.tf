@@ -5,13 +5,20 @@ locals{
     hostname = (template.count > 1) ? "${template.hostname_prefix}${i+1}" : template.hostname_prefix
     vcpu_count = template.vcpu_count
     memory_size_min = template.memory_size_min * 1024
-    memory_size_max = (template.memory_size_max != null) ? template.memory_size_max * 1024 : template.memory_size_min
-    vdisks = {for vdisk_name, vdisk in template.vdisks: vdisk_name => {
-      datastore_id = var.proxmox.datastores.domains
-      interface = "scsi${index(keys(template.vdisks), vdisk_name)+1}"
+    memory_size_max = (template.memory_size_max != null) ? template.memory_size_max * 1024 : template.memory_size_min * 1024
+    tmpfs = template.tmpfs
+    root_vdisk = {
+      interface = "scsi0"
+      size = template.root_vdisk.size
+      cloud_image_id = "${var.proxmox.datastores.imports}:import/${template.root_vdisk.cloud_image_filename}"
+      iothread = template.root_vdisk.iothread
+    }
+    additional_vdisks = {for vdisk_name, vdisk in template.additional_vdisks: vdisk_name => {
+      interface = vdisk.interface
+      path = vdisk.path
       size = vdisk.size
-      cloud_image_id = (vdisk.cloud_image_filename != null) ? "${var.proxmox.datastores.imports}:import/${vdisk.cloud_image_filename}" : null
       iothread = vdisk.iothread
+      partitions = vdisk.partitions
     }}
     nics = {for nic_name, nic in template.nics: nic_name => {
       default = nic.default
@@ -21,8 +28,8 @@ locals{
       ip_address = cidrhost(nic.cidr, nic.ip_offset+i)
       prefix_length = split("/", nic.cidr)[1]
       gateway = nic.gateway
-      routing_table = 100 + index(keys(template.nics), nic_name)
       dns_servers = nic.dns_servers
+      routing_table = 100 + index(keys(template.nics), nic_name)
     }}
     pci_devices = {for pci_device_name, pci_device in template.pci_devices: pci_device_name => {
       device = "hostpci${index(keys(template.pci_devices), pci_device_name)}"
@@ -57,7 +64,14 @@ resource "proxmox_virtual_environment_file" "user_data_cidata" {
       hostname = each.value.hostname
       ssh_username = each.value.ssh.username
       ssh_public_key = each.value.ssh.public_key
+      additional_vdisks = each.value.additional_vdisks
       nics = each.value.nics
+      storage_setup_sh = templatefile("${path.module}/templates/storage-setup.sh.tpl", {
+        additional_vdisks = each.value.additional_vdisks
+      })
+      pbr_service = templatefile("${path.module}/templates/policy-based-routing.service.tpl", {
+        nics = each.value.nics
+      })
     })
     file_name = "${each.key}-user-data.yml"
   }
@@ -97,15 +111,24 @@ resource "proxmox_virtual_environment_vm" "vms" {
     type = "4m"
     pre_enrolled_keys = true
   }
+  disk {
+    datastore_id = var.proxmox.datastores.domains
+    interface = each.value.root_vdisk.interface
+    serial = "root"
+    size = each.value.root_vdisk.size
+    file_format = "raw"
+    import_from = each.value.root_vdisk.cloud_image_id
+    iothread = each.value.root_vdisk.iothread
+    discard = "on"
+  }
   dynamic "disk" {
-    for_each = each.value.vdisks
+    for_each = each.value.additional_vdisks
     content {
       datastore_id = var.proxmox.datastores.domains
       interface = disk.value.interface
       serial = disk.key
       size = disk.value.size
       file_format = "raw"
-      import_from = disk.value.cloud_image_id
       iothread = disk.value.iothread
       discard = "on"
     }
@@ -127,13 +150,13 @@ resource "proxmox_virtual_environment_vm" "vms" {
     }
   }
   initialization {
-    interface = "scsi0"
     datastore_id = var.proxmox.datastores.domains
+    interface = "ide0"
     type = "nocloud"
     meta_data_file_id = proxmox_virtual_environment_file.meta_data_cidata[each.key].id
     user_data_file_id = proxmox_virtual_environment_file.user_data_cidata[each.key].id
     network_data_file_id = proxmox_virtual_environment_file.network_data_cidata[each.key].id
   }
-  boot_order = [for vdisk in each.value.vdisks: vdisk.interface if vdisk.cloud_image_id != null]
+  boot_order = ["scsi0"]
   started = true
 }
