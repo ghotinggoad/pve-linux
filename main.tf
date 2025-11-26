@@ -1,25 +1,25 @@
 locals{
   vms = merge([for template_name, template in var.templates: {for i in range(template.count): template.id_offset+i => {
-    group = template_name
+    template_name = template_name
     node = template.node
     hostname = (template.count > 1) ? "${template.hostname_prefix}${i+1}" : template.hostname_prefix
     vcpu_count = template.vcpu_count
     memory_size_min = template.memory_size_min * 1024
     memory_size_max = (template.memory_size_max != null) ? template.memory_size_max * 1024 : template.memory_size_min * 1024
-    tmpfs = template.tmpfs
     root_vdisk = {
       interface = "scsi0"
       size = template.root_vdisk.size
       cloud_image_id = "${var.proxmox.datastores.imports}:import/${template.root_vdisk.cloud_image_filename}"
       iothread = template.root_vdisk.iothread
     }
-    additional_vdisks = {for vdisk_name, vdisk in template.additional_vdisks: vdisk_name => {
+    data_vdisks = {for vdisk_name, vdisk in template.data_vdisks: vdisk_name => {
       interface = vdisk.interface
       path = vdisk.path
       size = vdisk.size
       iothread = vdisk.iothread
-      partitions = vdisk.partitions
+      persistent_mounts = vdisk.persistent_mounts
     }}
+    tmpfs_mounts = template.tmpfs_mounts
     nics = {for nic_name, nic in template.nics: nic_name => {
       default = nic.default
       bridge = nic.bridge
@@ -64,11 +64,8 @@ resource "proxmox_virtual_environment_file" "user_data_cidata" {
       hostname = each.value.hostname
       ssh_username = each.value.ssh.username
       ssh_public_key = each.value.ssh.public_key
-      additional_vdisks = each.value.additional_vdisks
+      data_vdisks = each.value.data_vdisks
       nics = each.value.nics
-      storage_setup_sh = templatefile("${path.module}/templates/storage-setup.sh.tpl", {
-        additional_vdisks = each.value.additional_vdisks
-      })
       pbr_service = templatefile("${path.module}/templates/policy-based-routing.service.tpl", {
         nics = each.value.nics
       })
@@ -114,7 +111,6 @@ resource "proxmox_virtual_environment_vm" "vms" {
   disk {
     datastore_id = var.proxmox.datastores.domains
     interface = each.value.root_vdisk.interface
-    serial = "root"
     size = each.value.root_vdisk.size
     file_format = "raw"
     import_from = each.value.root_vdisk.cloud_image_id
@@ -122,11 +118,10 @@ resource "proxmox_virtual_environment_vm" "vms" {
     discard = "on"
   }
   dynamic "disk" {
-    for_each = each.value.additional_vdisks
+    for_each = each.value.data_vdisks
     content {
       datastore_id = var.proxmox.datastores.domains
       interface = disk.value.interface
-      serial = disk.key
       size = disk.value.size
       file_format = "raw"
       iothread = disk.value.iothread

@@ -36,19 +36,19 @@ variable "templates"{
       cloud_image_filename = string
       iothread = optional(bool, false)
     })
-    additional_vdisks = optional(map(object({
+    data_vdisks = optional(map(object({
       interface = string
       path = string
       size = number
       iothread = optional(bool, false)
-      partitions = optional(map(object({
+      persistent_mounts = optional(map(object({
         size = string
         fstype = string
         mount_target = string
         mount_options = optional(string, "defaults")
       })))
     })), {})
-    tmpfs = optional(map(object({
+    tmpfs_mounts = optional(map(object({
       size = string
       mount_target = string
       mount_options = optional(string, "defaults")
