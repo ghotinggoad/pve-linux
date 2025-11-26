@@ -18,18 +18,7 @@ write_files:
     content: |
       ${indent(6, chomp(pbr_service))}
   %{~ endif ~}
-  %{~ if length(additional_vdisks) > 0 ~}
-  - path: /usr/local/sbin/storage-setup.sh
-    permissions: "0700"
-    content: |
-      ${indent(6, chomp(storage_setup_sh))}
-  %{~ endif ~}
 runcmd:
   %{~ if length(nics) > 0 ~}
   - ["systemctl", "enable", "--now", "policy-based-routing.service"]
-  %{~ endif ~}
-  %{~ if length(additional_vdisks) > 0 ~}
-  - ["bash", "/usr/local/sbin/storage-setup.sh"]
-  - ["rm", "/usr/local/sbin/storage-setup.sh"]
-  - ["systemctl", "reboot"]
   %{~ endif ~}
