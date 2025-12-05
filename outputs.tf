@@ -14,7 +14,7 @@ output "ansible_inventory" {
             "mount_options" = tmpfs_mount.mount_options
           }}
           "data_vdisks" = {for vdisk_name, vdisk in template.data_vdisks: vdisk_name => {
-            "path" = vdisk.path
+            "interface" = vdisk.interface
             "size" = vdisk.size
             "persistent_mounts" = vdisk.persistent_mounts
           }}
