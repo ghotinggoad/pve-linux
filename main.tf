@@ -25,11 +25,12 @@ locals{
       bridge = nic.bridge
       vlan_tag = nic.vlan_tag
       mac_address = format("52:54:00:%02d:%02d:%02d", split(".", nic.cidr)[2], nic.ip_offset+i, index(keys(template.nics), nic_name))
+      cidr = nic.cidr
       ip_address = cidrhost(nic.cidr, nic.ip_offset+i)
       prefix_length = split("/", nic.cidr)[1]
       gateway = nic.gateway
       dns_servers = nic.dns_servers
-      routing_table = 100 + index(keys(template.nics), nic_name)
+      routing_table = 1000 + index(keys(template.nics), nic_name)
     }}
     pci_devices = {for pci_device_name, pci_device in template.pci_devices: pci_device_name => {
       device = "hostpci${index(keys(template.pci_devices), pci_device_name)}"
